@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.rawgit.com/twbs/bootstrap/v4-dev/dist/css/bootstrap.css">
+  <script src="https://d3js.org/d3.v4.0.0-alpha.28.js"></script>
+  <style>
+    figure {
+      margin: 0;
+    }
+    .axis path {
+      fill: none;
+      stroke: #ccc;
+    }
+    .axis line {
+      stroke: #222;
+    }
+    .tick text {
+      stroke: none;
+      font-family: helvetica, arial, sans-serif;
+      text-transform: uppercase;
+      font-weight: 100;
+
+      fill: #333;
+      font-size: 0.5rem;
+    }
+    @media (min-width: 34rem) {
+      .tick text {
+        font-family: helvetica, arial, sans-serif;
+        text-transform: uppercase;
+        font-size: 1.2rem;
+        font-weight: 100;
+        fill: #777;
+      }
+    }
+  </style>
+</head>
+<body>
+<script>
+  /* global d3, time, timer, scale */
+
+  var main = d3.select("body")
+    .append('div').classed("container-fluid", true)
+    .append('div').classed("row", true)
+    .append('div').classed("col-xs-12", true)
+    .append("figure");
+
+  var svg = main.append("svg")
+    .style('width', "100%")
+    .style('height', "100vh");
+
+  var redLine = svg.append("line")
+    .classed("red-line", true)
+    .style("stroke", "red");
+
+  var x = d3.scaleLinear();
+  var y = d3.scaleLinear();
+
+  var timeScales = [
+    {
+      name: "year",
+      interval: d3.timeYear,
+      ticks: [d3.timeMonths, 3],
+      format: d3.timeFormat("%b %y")
+    },
+    {
+      name: "month",
+      interval: d3.timeMonth,
+      ticks: [null],
+    },
+    {
+      name: "week",
+      interval: d3.timeWeek,
+      ticks: [d3.timeDays, 7]
+    },
+    {
+      name: "day",
+      interval: d3.timeDay,
+      ticks: [d3.timeHours, 6]
+    },
+    {
+      name: "hour",
+      interval: d3.timeHour,
+      ticks: [d3.timeMinutes, 15]
+    },
+    {
+      name: "minute",
+      interval: d3.timeMinute,
+      ticks: [d3.timeSeconds, 15]
+    },
+    {
+      name: "second",
+      interval: d3.timeSecond,
+      ticks: [undefined]
+    }
+  ]
+    .map(function (obj) {
+      obj.scale = d3.scaleTime();
+      return obj;
+    })
+    .map(function (obj) {
+      var i = obj.interval;
+      obj.func = function (date) {
+        return [i.offset(date, -1), i.offset(date, +1)];
+      };
+      return obj;
+    })
+    .map(function (obj) {
+      obj.axis = d3.axisLeft()
+        .scale(obj.scale);
+
+      if (obj.format) obj.axis.tickFormat(obj.format);
+
+      obj.g = svg.append("g")
+        .classed(obj.name, true)
+        .classed("axis", true);
+        
+      return obj;
+    });
+
+  var scalesX = d3.scalePoint()
+    .domain(d3.range(timeScales.length));
+
+  d3.timer(function() {
+    var now = new Date();
+    timeScales.forEach(function (obj) {
+      var domain = obj.func(now);
+      obj.scale.domain(domain);
+      onAxisChange(obj);
+    });
+  });
+
+  function onAxisChange (obj) {
+    obj.g.call(obj.axis);
+  }
+
+  d3.select(window).on("resize", onResize);
+  onResize();
+
+  function onResize () {
+    var size = getDomSize(svg.node());
+
+    x.range([0, size.width]);
+    y.range([size.height, 0]);
+    
+    scalesX
+      .range([0, size.width])
+      .padding(1);
+
+    timeScales.forEach(function (obj, i) {
+      obj.scale.range([0, size.height]);
+      obj.g.attr("transform", "translate(" + scalesX(i) + ",0)");
+    });
+
+    redLine
+      .attr('x1', x(0))
+      .attr('y1', y(0.5))
+      .attr('x2', x(1))
+      .attr('y2', y(0.5));
+  }
+
+  function getDomSize (element) {
+    return { width: element.clientWidth, height: element.clientHeight };
+  }
+
+</script>
+</html>
